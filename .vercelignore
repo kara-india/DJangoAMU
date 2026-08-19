@@ -1,0 +1,21 @@
+# Exclude all Python/Django backend files from Vercel deployment.
+# Vercel serves only the built React frontend (frontend/dist/).
+# The Django API must be deployed separately on Render/Railway.
+
+# Django project
+manage.py
+project_task/
+users/
+tasks/
+requirements.txt
+Procfile
+render.yaml
+db.sqlite3
+staticfiles/
+.venv/
+*.py
+*.pyc
+__pycache__/
+
+# Dev artifacts
+.env
