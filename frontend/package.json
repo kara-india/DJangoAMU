@@ -1,6 +1,23 @@
 {
-  "name":"taskflow-ui","private":true,"version":"1.0.0","type":"module",
-  "scripts":{"dev":"vite","build":"tsc && vite build","preview":"vite preview"},
-  "dependencies":{"react":"latest","react-dom":"latest"},
-  "devDependencies":{"@vitejs/plugin-react":"latest","@types/react":"latest","@types/react-dom":"latest","typescript":"latest","vite":"latest"}
+  "name": "taskflow-ui",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "^5.7.3",
+    "vite": "^6.3.5"
+  }
 }
