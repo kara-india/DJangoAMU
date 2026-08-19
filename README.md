@@ -220,69 +220,99 @@ npm run typecheck    # TypeScript type-check only
 
 ---
 
-## Deployment
+## Deployment — Vercel + Supabase
 
-### Frontend — Vercel
+Everything runs on Vercel. The React frontend is served as static files; the Django API runs as a Vercel Python serverless function. Supabase provides the PostgreSQL database.
 
-The frontend is a static Vite build. Deploy with these settings:
+Since both the frontend and API share the same `*.vercel.app` domain, **CORS is not needed in production** — the browser sees them as the same origin.
 
-| Setting | Value |
-|---------|-------|
-| Root Directory | `frontend` |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
-| Install Command | `npm install` |
+---
 
-**Required environment variable in Vercel:**
+### Step 1 — Create a Supabase project
 
+1. Go to [supabase.com](https://supabase.com) → New project (free tier)
+2. Under **Settings → Database**, copy the **URI** connection string
+3. Use the **Transaction pooler** URI (port `6543`) — required for serverless
+
+The URI looks like:
 ```
-VITE_API_URL=https://your-taskflow-api.onrender.com/api
-```
-
-`vercel.json` (already committed) handles SPA routing:
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
+postgresql://postgres.XXXX:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
 ```
 
-### Backend — Railway
+---
 
-`railway.json` is committed to the repo — Railway reads it automatically.
+### Step 2 — Connect repo to Vercel
 
-**Setup (3 steps):**
-
-1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
-2. Select `kara-india/DJangoAMU` — Railway auto-detects Python and runs migrations
-3. Add these 4 environment variables under **Variables**:
+1. Go to [vercel.com](https://vercel.com) → New Project → Import `kara-india/DJangoAMU`
+2. Leave all settings at defaults — `vercel.json` in the repo handles everything
+3. Under **Environment Variables**, add:
 
 | Variable | Value |
 |----------|-------|
-| `DJANGO_SECRET_KEY` | Click **Generate** — Railway has a built-in secret generator |
+| `DATABASE_URL` | Your Supabase connection URI (from Step 1) |
+| `DJANGO_SECRET_KEY` | Any long random string (40+ characters) |
 | `DJANGO_DEBUG` | `False` |
-| `DJANGO_ALLOWED_HOSTS` | `your-app.up.railway.app` (shown after first deploy) |
-| `CORS_ALLOWED_ORIGINS` | `https://your-taskflow.vercel.app` |
 
-Railway will auto-run `pip install`, `migrate`, `collectstatic`, and start gunicorn. No further configuration needed.
+That's it — no build command or output directory to configure manually.
 
-After deploy, your API URL will be `https://your-app.up.railway.app`.
+---
 
-> **Note on SQLite on Railway**: Railway's free tier uses ephemeral storage — the SQLite database resets on redeploy. This is acceptable for a screening assessment. For persistent storage, Railway offers a Volume add-on. This project is intentionally kept on SQLite to stay simple and explainable.
+### Step 3 — Run migrations once
+
+After Vercel deploys, run migrations against Supabase from your local machine:
+
+```bash
+# Set DATABASE_URL in your local shell (use the Supabase URI from Step 1)
+set DATABASE_URL=postgresql://postgres.XXXX:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+
+# Run migrations
+python manage.py migrate
+
+# Seed demo data
+python manage.py seed_demo
+```
+
+Your app is now live at `https://your-project.vercel.app`.
+
+---
+
+### How it works
+
+```
+Browser
+  │
+  ├─ GET /                → Vercel CDN → frontend/dist/index.html  (React SPA)
+  ├─ GET /assets/*.js     → Vercel CDN → frontend/dist/assets/     (Vite bundle)
+  │
+  ├─ GET  /api/tasks/     → api/index.py → Django → Supabase PostgreSQL
+  ├─ POST /api/token/     → api/index.py → Django JWT auth
+  └─ GET  /admin/         → api/index.py → Django admin
+```
+
+`api/index.py` is the Django WSGI wrapper Vercel reads automatically. `vercel.json` routes `/api/*` and `/admin/*` to it, and serves everything else as static files with an SPA fallback.
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (`.env` — never commit this file)
+### Vercel (production)
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Supabase transaction pooler URI |
+| `DJANGO_SECRET_KEY` | Long random secret (never share) |
+| `DJANGO_DEBUG` | `False` |
+
+### Local development (`.env` — never commit)
 
 ```bash
-DJANGO_SECRET_KEY=your-long-random-secret-key-here
+# No DATABASE_URL needed locally — Django falls back to SQLite automatically
+DJANGO_SECRET_KEY=any-local-dev-key
 DJANGO_DEBUG=True
-DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 CORS_ALLOWED_ORIGINS=http://localhost:5173
 ```
 
-### Frontend (`frontend/.env` — never commit this file)
+### Frontend local dev (`frontend/.env` — never commit)
 
 ```bash
 VITE_API_URL=http://127.0.0.1:8000/api
