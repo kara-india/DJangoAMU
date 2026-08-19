@@ -246,28 +246,28 @@ VITE_API_URL=https://your-taskflow-api.onrender.com/api
 }
 ```
 
-### Backend — Render.com
+### Backend — Railway
 
-A `render.yaml` is provided in the repository root for one-click Render deployment.
+`railway.json` is committed to the repo — Railway reads it automatically.
 
-**Manual setup:**
+**Setup (3 steps):**
 
-1. Create a new **Web Service** on Render
-2. Connect the `kara-india/DJangoAMU` repository
-3. Set runtime to **Python**
-4. Build command: `pip install -r requirements.txt && python manage.py migrate --no-input && python manage.py collectstatic --no-input`
-5. Start command: `gunicorn project_task.wsgi:application`
-
-**Required environment variables on Render:**
+1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
+2. Select `kara-india/DJangoAMU` — Railway auto-detects Python and runs migrations
+3. Add these 4 environment variables under **Variables**:
 
 | Variable | Value |
 |----------|-------|
-| `DJANGO_SECRET_KEY` | A long random string (use Render's "Generate" button) |
+| `DJANGO_SECRET_KEY` | Click **Generate** — Railway has a built-in secret generator |
 | `DJANGO_DEBUG` | `False` |
-| `DJANGO_ALLOWED_HOSTS` | `your-service.onrender.com` |
+| `DJANGO_ALLOWED_HOSTS` | `your-app.up.railway.app` (shown after first deploy) |
 | `CORS_ALLOWED_ORIGINS` | `https://your-taskflow.vercel.app` |
 
-> **Note on SQLite on Render**: Render's free tier uses ephemeral storage — the SQLite database will reset on redeploy. This is acceptable for a screening assessment. For persistent storage, Render offers a persistent disk add-on or you can migrate to PostgreSQL. This project is intentionally kept on SQLite to stay simple and explainable.
+Railway will auto-run `pip install`, `migrate`, `collectstatic`, and start gunicorn. No further configuration needed.
+
+After deploy, your API URL will be `https://your-app.up.railway.app`.
+
+> **Note on SQLite on Railway**: Railway's free tier uses ephemeral storage — the SQLite database resets on redeploy. This is acceptable for a screening assessment. For persistent storage, Railway offers a Volume add-on. This project is intentionally kept on SQLite to stay simple and explainable.
 
 ---
 
