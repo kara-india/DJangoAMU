@@ -1,55 +1,87 @@
 # TaskFlow — Role-aware Task Management
 
-A screening-round implementation demonstrating Django/DRF backend skills, React/TypeScript frontend, JWT authentication, and explicit role-based access control (RBAC). Every authorization rule is enforced server-side; the frontend merely reflects what the API permits.
+A screening-round implementation demonstrating Django/DRF backend skills, React/TypeScript frontend, JWT authentication, and explicit role-based access control (RBAC). Every authorization rule is enforced server-side; the frontend reflects what the API permits.
 
 ---
 
 ## Features
 
-- **Three-tier RBAC**: ADMIN → MANAGER → USER with different visibility and mutation rights
+- **Three-tier RBAC**: ADMIN → MANAGER → USER
 - **JWT authentication**: Access + refresh token flow via SimpleJWT
-- **Task lifecycle**: Create, assign, update status, edit details, delete (with role enforcement)
-- **Team scoping**: Managers see only their own team; users see only their own tasks
-- **Inline task editing**: Title, description, and status editable per role
+- **Task lifecycle**: Create, assign, update status, edit details, delete
+- **Team scoping**: Managers see their team; users see their own tasks
+- **Inline task editing**: Title, description, and status
+- **Organization view**: Clear visual representation of the Admin → Manager → User hierarchy
 - **API documentation**: Swagger UI at `/api/docs/`
-- **Security tests**: Regression suite covering all privilege-escalation paths
-- **Demo seed command**: One command to populate the database with realistic data
+- **Security regression coverage** for privilege-escalation paths
+- **Demo seed data** for local Django usage
+
+---
+
+## UI / Web Demo
+
+The React frontend is a lightweight TaskFlow workspace designed to make the assessment easy to evaluate visually without changing the original API contract.
+
+### Main screens
+
+- **Overview** — task counts, recent work and role context
+- **Tasks** — filterable task cards/list, status changes, edit overlay and deletion for permitted roles
+- **Organization / Team** — role-aware team visibility
+- **Create Task** — available to Admin and Manager with assignment controls
+- **Edit Task** — users can edit title, description and status; protected fields remain unavailable
+
+The UI deliberately uses a small React + TypeScript + Vite stack. There is no Redux, router or heavyweight component framework.
+
+### Vercel demo mode
+
+The frontend can run independently when no `VITE_API_URL` is configured. In that mode, a small browser-local demo adapter emulates the same REST endpoints using `localStorage`.
+
+This makes the Vercel deployment immediately usable for screening/demo purposes without requiring the evaluator to configure Django, Render, Supabase, PostgreSQL or environment variables.
+
+The demo is initialized with an Admin account and realistic users/tasks on first visit. Signing out exposes the demo login flow for the Admin, Manager and User roles.
+
+**Important:** Demo mode is presentation/demo functionality only. The actual Django API remains the authoritative implementation of authentication, authorization and persistence.
 
 ---
 
 ## Architecture
 
-```
-React + TypeScript + Vite
-         │
-         │  HTTPS (VITE_API_URL)
-         ▼
-  Django REST Framework
-         │
-         │  Django ORM
-         ▼
-       SQLite
+### Backend
+
+```text
+Django + Django REST Framework
+           │
+      Django ORM
+           │
+        SQLite
 ```
 
-**Frontend**: Single-page application — no React Router, no Redux. All state is local. All authorization logic lives in the backend.
+### Web demo
 
-**Backend**: Standard Django project with two apps (`users`, `tasks`). JWT is stateless. Role enforcement is in serializers, permission classes, and view-level queryset filtering.
+```text
+Vercel
+  │
+  └── React + TypeScript + Vite
+          │
+          └── browser-local demo adapter (when VITE_API_URL is absent)
+```
+
+When a real `VITE_API_URL` is supplied, the same frontend calls the Django API normally.
 
 ---
 
 ## Role Hierarchy
 
-```
+```text
 ADMIN
   │  Organization-wide visibility
   │  Can create/update/delete users and tasks
-  │  Can assign tasks to any user
+  │  Can assign tasks broadly
   ▼
 MANAGER
   │  Sees own team members and their tasks
   │  Can create and assign tasks within own team
   │  Cannot assign to another manager's team
-  │  Cannot delete users
   ▼
 USER
      Sees only own tasks
@@ -81,57 +113,39 @@ USER
 
 ## Security
 
-The following privilege-escalation paths are explicitly blocked and covered by regression tests:
+The backend is intentionally authoritative. Frontend controls only improve UX; direct API requests are still subject to Django permissions/queryset filtering/serializer restrictions.
 
-- **USER → ADMIN role promotion**: `role` field is `read_only` in `UserSerializer` for non-admins
-- **USER changing own manager**: `manager` field is `read_only` for non-admins
-- **USER changing task assignee**: `assigned_to` field is `read_only` in `TaskSerializer` for USER role
-- **USER deleting tasks**: Checked in `TaskDetailView.destroy()`
-- **USER deleting users**: `UserDeleteView` requires `IsAdmin` permission
-- **MANAGER assigning outside team (create)**: Checked in `TaskListCreateView.perform_create()`
-- **MANAGER assigning outside team (update/PATCH)**: Checked in `TaskDetailView.update()`
-- **Unauthenticated access**: All endpoints require `IsAuthenticated` by default
+Important protected paths include:
+
+- non-admin users cannot promote themselves to ADMIN or change their manager
+- users cannot change task assignee through their permitted update fields
+- users cannot delete tasks or users
+- managers cannot assign tasks outside their own team
+- unauthenticated API access is rejected
 
 ---
 
 ## Local Setup
 
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-
 ### Backend
 
 ```bash
-# 1. Clone
-git clone https://github.com/kara-india/DJangoAMU.git
-cd DJangoAMU
-
-# 2. Create virtual environment
 python -m venv .venv
 
 # Windows
 .venv\Scripts\activate
+
 # macOS/Linux
 source .venv/bin/activate
 
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. Run migrations
 python manage.py migrate
-
-# 5. Seed demo data (optional but recommended)
-python manage.py seed_demo
-
-# 6. Start the API server
 python manage.py runserver
 ```
 
-- API base: `http://127.0.0.1:8000/api/`
-- Swagger UI: `http://127.0.0.1:8000/api/docs/`
-- Django admin: `http://127.0.0.1:8000/admin/`
+API: `http://127.0.0.1:8000/api/`
+
+Swagger UI: `http://127.0.0.1:8000/api/docs/`
 
 ### Frontend
 
@@ -141,184 +155,103 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`. It proxies API calls through `VITE_API_URL` (defaults to `/api` — configure this env var to point at a separate backend).
+For a real backend:
 
 ```bash
-# For a separate backend:
 VITE_API_URL=http://127.0.0.1:8000/api npm run dev
 ```
 
+Without `VITE_API_URL`, the frontend runs in browser-local demo mode.
+
 ---
 
-## Demo Data
+## Demo Accounts
 
-Run the seed command to create a full demo dataset:
+> Demo credentials are for local/demo use only.
 
-```bash
-python manage.py seed_demo
-# To reset and re-seed:
-python manage.py seed_demo --reset
-```
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `Admin123!` | ADMIN |
+| `manager1` | `Manager123!` | MANAGER |
+| `manager2` | `Manager123!` | MANAGER |
+| `user1` | `User123!` | USER |
+| `user2` | `User123!` | USER |
+| `user3` | `User123!` | USER |
+| `user4` | `User123!` | USER |
+| `user5` | `User123!` | USER |
+| `user6` | `User123!` | USER |
 
-### Demo Credentials
-
-> ⚠️ **These are local development / demo credentials only. Never use in production.**
-
-| Username | Password | Role | Team |
-|----------|----------|------|------|
-| `admin` | `Admin123!` | ADMIN | — |
-| `manager1` | `Manager123!` | MANAGER | alice, bob, carol |
-| `manager2` | `Manager123!` | MANAGER | dave, eve, frank |
-| `alice` | `User123!` | USER | manager1's team |
-| `bob` | `User123!` | USER | manager1's team |
-| `carol` | `User123!` | USER | manager1's team |
-| `dave` | `User123!` | USER | manager2's team |
-| `eve` | `User123!` | USER | manager2's team |
-| `frank` | `User123!` | USER | manager2's team |
-
-The seed command also creates 15 tasks spread across all statuses (TODO / IN_PROGRESS / DONE), assigned to team members and managers.
+The web demo automatically opens the Admin workspace on the first visit so the evaluator can immediately inspect the UI.
 
 ---
 
 ## Testing
 
-### Django backend tests
+### Backend
 
 ```bash
 python manage.py test
 ```
 
-The test suite covers:
-- Admin can list all users and tasks
-- Admin can delete users and tasks
-- Admin can assign tasks to any user
-- USER cannot promote self to ADMIN
-- USER cannot change own manager
-- USER cannot create tasks
-- USER cannot delete tasks
-- USER cannot delete users
-- USER cannot view another user's task
-- USER cannot change task assignee (field is ignored)
-- USER can update title, description, and status
-- MANAGER sees only own team users
-- MANAGER sees only team tasks
-- MANAGER cannot assign task to another team's user (create)
-- MANAGER cannot assign task to another team's user (PATCH)
-- MANAGER cannot delete users
-- MANAGER can assign task to own team member
-- MANAGER can assign task to self
-- MANAGER can delete visible task
-- Unauthenticated access is rejected
-
-### Frontend build
+### Frontend
 
 ```bash
 cd frontend
-npm run build        # TypeScript compile + Vite bundle
-npm run typecheck    # TypeScript type-check only
+npm run build
+npm run typecheck
 ```
+
+The Vercel demo should be tested for:
+
+- first-load dashboard
+- task filters
+- create task
+- edit task
+- status update
+- delete task
+- organization/team visibility
+- sign out/sign in
+- Admin / Manager / User role behavior
 
 ---
 
-## Deployment — Vercel + Supabase
+## Deployment — Vercel
 
-Everything runs on Vercel. The React frontend is served as static files; the Django API runs as a Vercel Python serverless function. Supabase provides the PostgreSQL database.
+The current deployment strategy is intentionally simple:
 
-Since both the frontend and API share the same `*.vercel.app` domain, **CORS is not needed in production** — the browser sees them as the same origin.
-
----
-
-### Step 1 — Create a Supabase project
-
-1. Go to [supabase.com](https://supabase.com) → New project (free tier)
-2. Under **Settings → Database**, copy the **URI** connection string
-3. Use the **Transaction pooler** URI (port `6543`) — required for serverless
-
-The URI looks like:
-```
-postgresql://postgres.XXXX:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+```text
+GitHub
+  ↓
+Vercel
+  ↓
+React + Vite static frontend
+  ↓
+Browser-local demo data when no API URL is configured
 ```
 
----
+There is **no Django runtime, Python function, Supabase dependency or PostgreSQL dependency in the Vercel demo deployment**.
 
-### Step 2 — Connect repo to Vercel
+Vercel can deploy directly from this repository using the root `vercel.json` configuration:
 
-1. Go to [vercel.com](https://vercel.com) → New Project → Import `kara-india/DJangoAMU`
-2. Leave all settings at defaults — `vercel.json` in the repo handles everything
-3. Under **Environment Variables**, add:
-
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | Your Supabase connection URI (from Step 1) |
-| `DJANGO_SECRET_KEY` | Any long random string (40+ characters) |
-| `DJANGO_DEBUG` | `False` |
-
-That's it — no build command or output directory to configure manually.
-
----
-
-### Step 3 — Run migrations once
-
-After Vercel deploys, run migrations against Supabase from your local machine:
-
-```bash
-# Set DATABASE_URL in your local shell (use the Supabase URI from Step 1)
-set DATABASE_URL=postgresql://postgres.XXXX:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
-
-# Run migrations
-python manage.py migrate
-
-# Seed demo data
-python manage.py seed_demo
+```json
+{
+  "installCommand": "npm --prefix frontend install",
+  "buildCommand": "npm --prefix frontend run build",
+  "outputDirectory": "frontend/dist"
+}
 ```
 
-Your app is now live at `https://your-project.vercel.app`.
+The frontend also contains its SPA rewrite configuration under `frontend/vercel.json`.
 
----
+### Optional real API mode
 
-### How it works
+When a real Django deployment is available, configure:
 
-```
-Browser
-  │
-  ├─ GET /                → Vercel CDN → frontend/dist/index.html  (React SPA)
-  ├─ GET /assets/*.js     → Vercel CDN → frontend/dist/assets/     (Vite bundle)
-  │
-  ├─ GET  /api/tasks/     → api/index.py → Django → Supabase PostgreSQL
-  ├─ POST /api/token/     → api/index.py → Django JWT auth
-  └─ GET  /admin/         → api/index.py → Django admin
+```text
+VITE_API_URL=https://your-django-api.example.com/api
 ```
 
-`api/index.py` is the Django WSGI wrapper Vercel reads automatically. `vercel.json` routes `/api/*` and `/admin/*` to it, and serves everything else as static files with an SPA fallback.
-
----
-
-## Environment Variables Reference
-
-### Vercel (production)
-
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | Supabase transaction pooler URI |
-| `DJANGO_SECRET_KEY` | Long random secret (never share) |
-| `DJANGO_DEBUG` | `False` |
-
-### Local development (`.env` — never commit)
-
-```bash
-# No DATABASE_URL needed locally — Django falls back to SQLite automatically
-DJANGO_SECRET_KEY=any-local-dev-key
-DJANGO_DEBUG=True
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-```
-
-### Frontend local dev (`frontend/.env` — never commit)
-
-```bash
-VITE_API_URL=http://127.0.0.1:8000/api
-```
-
-See `.env.example` (root) and `frontend/.env.example` for templates.
+The frontend then uses the real API instead of the browser-local demo adapter.
 
 ---
 
@@ -326,77 +259,50 @@ See `.env.example` (root) and `frontend/.env.example` for templates.
 
 ### Why Django + DRF?
 
-Django gives a clear, conventional structure that interviewers can read and evaluate quickly. DRF's serializers, generic views, and permission classes are the industry-standard way to build REST APIs in Python.
+The screening assessment is fundamentally about REST APIs, authentication and role-based authorization. Keeping Django/DRF as the source of truth makes those decisions explicit and easy to evaluate.
 
 ### Why SQLite?
 
-It requires zero infrastructure. The database is a single file. Migrations work identically to PostgreSQL. For a screening assessment the goal is demonstrating understanding of Django ORM, not infrastructure provisioning.
+It requires no infrastructure for local development and keeps the assessment easy to run.
 
-### Why a single `main.tsx`?
+### Why React + TypeScript + Vite?
 
-The entire frontend application is in one file. This is a deliberate choice: every line of code is immediately findable and explainable in an interview. There is no "where does X happen?" confusion. As the app grows, you would split into components and add routing — but for this scope, a single file is cleaner.
+It adds a professional UI while keeping the frontend stack small enough to explain comfortably in an interview.
 
-### Why no Redux / Zustand?
+### Why no Redux / Zustand / React Router?
 
-The app has three data types (user, tasks, team members) and one authenticated user. Local `useState` + a `load()` function is sufficient and far easier to explain than a state management library.
+The current UI is small enough for local React state and three top-level views. Additional state/routing frameworks would add complexity without meaningful assessment value.
 
-### Why no React Router?
+### Why browser-local demo mode?
 
-There are three views (dashboard, tasks, people). They are controlled by a single `view` state variable. This is sufficient for the current scope. Adding React Router would introduce complexity (route guards, nested routes, navigation history) without adding any value for this assessment.
-
-### Why no Supabase / PostgreSQL?
-
-The assessment does not require production persistence. Introducing Supabase would hide the Django ORM behind an abstraction and make the backend harder to explain. SQLite + Django ORM is the honest, simple choice.
-
-### Why Vercel for frontend + Render for backend?
-
-Vercel serves static files (the built React app) optimally. Django + SQLite needs a persistent Python process — Render's web services provide this with zero configuration overhead. Keeping them separate is the correct architectural split.
+A screening evaluator should be able to click **Visit** on Vercel and immediately see a working application. Demo mode removes external database/backend setup while leaving the real Django API implementation intact.
 
 ---
 
 ## Project Structure
 
-```
+```text
 DJangoAMU/
 ├── manage.py
-├── requirements.txt          # Django, DRF, JWT, CORS, gunicorn, whitenoise
-├── Procfile                  # gunicorn startup for Render
-├── render.yaml               # Render.com deployment config
-├── .env.example              # Backend env template
+├── requirements.txt
+├── .env.example
 ├── .gitignore
 ├── README.md
+├── vercel.json
 │
-├── project_task/             # Django project config
-│   ├── settings.py           # All env-var driven
-│   ├── urls.py               # Root URL conf
-│   ├── wsgi.py
-│   └── asgi.py
+├── project_task/
+├── users/
+├── tasks/
+├── utils/
 │
-├── users/                    # Custom user app
-│   ├── models.py             # User extends AbstractUser (role, manager)
-│   ├── serializers.py        # Read-only role/manager for non-admins
-│   ├── views.py              # Register, Me, UserList, UserDetail, UserDelete
-│   ├── permissions.py        # IsAdmin
-│   ├── urls.py
-│   ├── tests.py              # 19 security regression tests
-│   └── management/commands/
-│       └── seed_demo.py      # Demo data command
-│
-├── tasks/                    # Task management app
-│   ├── models.py             # Task (title, description, assigned_to, status)
-│   ├── serializers.py        # Read-only assigned_to for USER role
-│   ├── views.py              # TaskList+Create, TaskDetail (RBAC enforced)
-│   ├── permissions.py        # IsAdminOrManager
-│   └── urls.py
-│
-└── frontend/                 # React + TypeScript + Vite
+└── frontend/
     ├── package.json
     ├── vite.config.ts
     ├── tsconfig.json
     ├── index.html
-    ├── vercel.json           # SPA rewrite rule for Vercel
-    ├── .env.example          # Frontend env template
+    ├── vercel.json
     └── src/
-        ├── main.tsx          # Full application (App + components)
-        └── styles.css        # Complete dark-theme design system
+        ├── main.tsx
+        ├── demoApi.ts
+        └── styles.css
 ```
