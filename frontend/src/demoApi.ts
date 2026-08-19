@@ -27,17 +27,16 @@ function seed(){
     const ts=now()
     const titles=['Quarterly planning review','Refresh onboarding flow','Close customer feedback loop','Prepare release notes','Audit access permissions','Update product roadmap','Create architecture diagram','Review API documentation','Validate reporting metrics','Plan sprint retrospective','Polish mobile experience','Prepare stakeholder demo']
     const demoTasks:DemoTask[]=titles.map((title,i)=>({
-      id:i+1,
-      title,
+      id:i+1,title,
       description:['Align scope, owners and milestones.','Simplify the current experience and remove friction.','Review open feedback and close the highest-impact items.'][i%3],
-      assigned_to:4+(i%6),
-      assigned_to_name:['Sam Wilson','Maya Patel','Noah Garcia','Ava Chen','Ethan Brown','Sofia Martin'][i%6],
-      status:(['TODO','IN_PROGRESS','DONE'] as const)[i%3],
-      created_at:ts,
-      updated_at:ts,
+      assigned_to:4+(i%6),assigned_to_name:['Sam Wilson','Maya Patel','Noah Garcia','Ava Chen','Ethan Brown','Sofia Martin'][i%6],
+      status:(['TODO','IN_PROGRESS','DONE'] as const)[i%3],created_at:ts,updated_at:ts,
     }))
     localStorage.setItem(TASKS_KEY,JSON.stringify(demoTasks))
   }
+  // First visit: open straight into a populated Admin demo so a reviewer can click around immediately.
+  if(!localStorage.getItem(ME_KEY)) localStorage.setItem(ME_KEY,'admin')
+  if(!localStorage.getItem('access')) localStorage.setItem('access','demo-access-token')
 }
 
 function users(){seed();return JSON.parse(localStorage.getItem(USERS_KEY)!) as DemoUser[]}
@@ -53,7 +52,7 @@ export async function demoApi<T=unknown>(path:string,options:RequestInit={}):Pro
   if(path==='/token/' && method==='POST'){
     const credentials:{[k:string]:string}={admin:'Admin123!',manager1:'Manager123!',manager2:'Manager123!',user1:'User123!',user2:'User123!',user3:'User123!',user4:'User123!',user5:'User123!',user6:'User123!'}
     if(credentials[String(body.username)]!==String(body.password)) throw new Error('Invalid username or password.')
-    localStorage.setItem(ME_KEY,String(body.username))
+    localStorage.setItem(ME_KEY,String(body.username)); localStorage.setItem('access','demo-access-token')
     return {access:'demo-access-token',refresh:'demo-refresh-token'} as T
   }
 
